@@ -81,8 +81,20 @@ def explicit_floor(value) -> Version | None:
     return None
 
 
+# Sources of a floor, in stacking order, each with its bar label and colour.
+SOURCES = [
+    ("minimum-version", "tool.scikit-build.minimum-version", "#4c72b0"),
+    ("sentinel", 'minimum-version = "build-system.requires"', "#55a868"),
+    ("requires", "build-system.requires bound", "#dd8452"),
+]
+
+
 def effective_floor(toml: dict) -> tuple[Version, str] | None:
-    """(floor, source) for a project, or None if no floor is declared."""
+    """(floor, source) for a project, or None if no floor is declared.
+
+    An explicit ``minimum-version`` wins; the ``build-system.requires``
+    sentinel and a bare requirement both fall back to the requirement bound,
+    but are tagged apart so the sentinel gets its own colour."""
     minimum = toml.get("tool", {}).get("scikit-build", {}).get("minimum-version")
     explicit = explicit_floor(minimum)
     if explicit is not None:
@@ -90,7 +102,7 @@ def effective_floor(toml: dict) -> tuple[Version, str] | None:
     requires = toml.get("build-system", {}).get("requires", [])
     floor = requires_floor(requires)
     if floor is not None:
-        return floor, "build-system.requires"
+        return floor, "sentinel" if minimum == SENTINEL else "requires"
     return None
 
 
@@ -101,10 +113,7 @@ def bucket(v: Version) -> str:
 
 def collect(db: str) -> dict[str, Counter]:
     """{source: Counter(major.minor -> n)} across all projects."""
-    counts: dict[str, Counter] = {
-        "minimum-version": Counter(),
-        "build-system.requires": Counter(),
-    }
+    counts: dict[str, Counter] = {key: Counter() for key, _, _ in SOURCES}
     for toml in get_tomls(db):
         result = effective_floor(toml)
         if result is not None:
@@ -119,22 +128,17 @@ def plot(counts: dict[str, Counter], out: str, show: bool) -> None:
     buckets = sorted(
         {b for c in counts.values() for b in c}, key=lambda s: Version(s)
     )
-    explicit = [counts["minimum-version"][b] for b in buckets]
-    derived = [counts["build-system.requires"][b] for b in buckets]
-    total = sum(explicit) + sum(derived)
+    totals = [0] * len(buckets)
+    total = sum(sum(c.values()) for c in counts.values())
 
     fig, ax = plt.subplots(figsize=(10, 6))
-    ax.bar(buckets, explicit, label="tool.scikit-build.minimum-version", color="#4c72b0")
-    ax.bar(
-        buckets,
-        derived,
-        bottom=explicit,
-        label="build-system.requires bound",
-        color="#dd8452",
-    )
-    for i, (e, d) in enumerate(zip(explicit, derived)):
-        if e + d:
-            ax.text(i, e + d, str(e + d), ha="center", va="bottom", fontsize=9)
+    for key, label, color in SOURCES:
+        heights = [counts[key][b] for b in buckets]
+        ax.bar(buckets, heights, bottom=totals, label=label, color=color)
+        totals = [t + h for t, h in zip(totals, heights)]
+    for i, t in enumerate(totals):
+        if t:
+            ax.text(i, t, str(t), ha="center", va="bottom", fontsize=9)
 
     ax.set_xlabel("Minimum scikit-build-core version (major.minor)")
     ax.set_ylabel("Projects")

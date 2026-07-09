@@ -102,8 +102,9 @@ Each project has two possible floors: the explicit
 `tool.scikit-build.minimum-version`, and the `>=` / `~=` / `==` bound on
 scikit-build-core in `build-system.requires`. The script prefers the explicit
 one when it names a real version, and falls back to the requirement bound
-otherwise (including when `minimum-version` is the `"build-system.requires"`
-sentinel). The result is a stacked bar per `major.minor` line, coloured by
-which source the floor came from.
+otherwise. The stacked bars (one per `major.minor` line) split three ways by
+source: an explicit `minimum-version`, the `"build-system.requires"` sentinel
+value (which defers the floor to the requirement bound), and a bare requirement
+bound with no `minimum-version` at all.
 
 [PEP 723]: https://peps.python.org/pep-0723/
