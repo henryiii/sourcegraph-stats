@@ -63,3 +63,21 @@ Rank repos by popularity:
 ```sql
 SELECT name, stars FROM repos ORDER BY stars DESC LIMIT 10;
 ```
+
+## Analysing pyproject.toml keys
+
+`compute-tool.py` (adapted from [henryiii/pystats][]) counts and inspects keys
+across the fetched TOML files, reading straight from `file_contents`:
+
+```bash
+./compute-tool.py tool.scikit-build                 # keys under [tool.scikit-build]
+./compute-tool.py tool.scikit-build.wheel -l1       # count one level deeper
+./compute-tool.py build-system.build-backend -c Reprs   # distinct values, by count
+./compute-tool.py tool.scikit-build -c Any          # how many files have the section
+./compute-tool.py build-system.build-backend -c Reprs -b "'scikit_build_core.build'"
+```
+
+`-c` selects what to count (`Values` keys, `Reprs` values, `Lengths`, `Lines`,
+`Any`); `-b` "blames" — lists the `repository file_path` of each match.
+
+[henryiii/pystats]: https://github.com/henryiii/pystats
