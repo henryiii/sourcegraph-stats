@@ -74,10 +74,10 @@ SELECT name, stars FROM repos ORDER BY stars DESC LIMIT 10;
 across the fetched TOML files, reading straight from `file_contents`:
 
 ```bash
-./compute-tool.py tool.scikit-build                 # keys under [tool.scikit-build]
-./compute-tool.py tool.scikit-build.wheel -l1       # count one level deeper
-./compute-tool.py build-system.build-backend -c Reprs   # distinct values, by count
-./compute-tool.py tool.scikit-build -c Any          # how many files have the section
+./compute-tool.py tool.scikit-build                    #  keys under [tool.scikit-build]
+./compute-tool.py tool.scikit-build.wheel -l1          # count one level deeper
+./compute-tool.py build-system.build-backend -c Reprs  # distinct values, by count
+./compute-tool.py tool.scikit-build -c Any             # how many files have the section
 ./compute-tool.py build-system.build-backend -c Reprs -b "'scikit_build_core.build'"
 ```
 
