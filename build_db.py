@@ -18,10 +18,15 @@ import sys
 CSV_PATH = next(iter(glob.glob("*.csv")))
 DB_PATH = "scikit-build-core.db"
 
+# scikit-build-core itself only contributes templates and test fixtures, which
+# skew the stats. No forks or content-identical mirrors exist in the export, so
+# excluding the canonical repo is enough; add copies here if any ever appear.
+EXCLUDE_REPOS = {"github.com/scikit-build/scikit-build-core"}
+
 
 def load_rows() -> list[dict]:
     with open(CSV_PATH, newline="") as f:
-        return list(csv.DictReader(f))
+        return [r for r in csv.DictReader(f) if r["Repository"] not in EXCLUDE_REPOS]
 
 
 def split_repo(repository: str) -> tuple[str, str, str]:

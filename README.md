@@ -24,6 +24,10 @@ GraphQL API (batched, using the `gh` CLI's token), and writes
 `scikit-build-core.db`. It rebuilds from scratch each run, so re-run it to
 refresh stars.
 
+The scikit-build-core repo itself is excluded (`EXCLUDE_REPOS`), since it only
+contributes templates and test fixtures that skew the stats. The export
+contains no forks or content-identical mirrors of it.
+
 ## Fetching file contents
 
 ```bash
