@@ -64,10 +64,41 @@ def fetch_stars(repos: list[str]) -> dict[str, int]:
     return stars
 
 
+def read_existing_contents(path: str) -> dict[tuple[str, str], tuple]:
+    """Preserve fetched file_contents across a rebuild, keyed by the stable
+    (repository, file_path) pair since file ids are reassigned."""
+    if not os.path.exists(path):
+        return {}
+    con = sqlite3.connect(path)
+    try:
+        con.execute("SELECT 1 FROM file_contents LIMIT 1")
+    except sqlite3.OperationalError:
+        con.close()
+        return {}
+    saved = {
+        (repository, file_path): (content, byte_size, is_binary, status)
+        for repository, file_path, content, byte_size, is_binary, status in con.execute(
+            """
+            SELECT r.repository, f.file_path,
+                   c.content, c.byte_size, c.is_binary, c.status
+            FROM file_contents c
+            JOIN files f ON f.id = c.file_id
+            JOIN repos r ON r.id = f.repo_id
+            """
+        )
+    }
+    con.close()
+    return saved
+
+
 def main() -> None:
     rows = load_rows()
     repositories = sorted({r["Repository"] for r in rows})
     print(f"{len(rows)} rows, {len(repositories)} repos", file=sys.stderr)
+
+    saved_contents = read_existing_contents(DB_PATH)
+    if saved_contents:
+        print(f"preserving {len(saved_contents)} fetched files", file=sys.stderr)
 
     stars = fetch_stars(repositories)
     print(f"got stars for {len(stars)} repos", file=sys.stderr)
@@ -96,6 +127,13 @@ def main() -> None:
             chunk_matches TEXT
         );
         CREATE INDEX idx_files_repo_id ON files(repo_id);
+        CREATE TABLE file_contents (
+            file_id    INTEGER PRIMARY KEY REFERENCES files(id),
+            content    TEXT,
+            byte_size  INTEGER,
+            is_binary  INTEGER,
+            status     TEXT NOT NULL
+        );
         """
     )
 
@@ -111,7 +149,7 @@ def main() -> None:
         repo_id[repository] = cur.lastrowid
 
     for r in rows:
-        con.execute(
+        cur = con.execute(
             "INSERT INTO files (repo_id, file_path, file_url, path_matches, chunk_matches)"
             " VALUES (?, ?, ?, ?, ?)",
             (
@@ -122,10 +160,18 @@ def main() -> None:
                 r["Chunk matches [line [start end]]"] or None,
             ),
         )
+        key = (r["Repository"], r["File path"])
+        if key in saved_contents:
+            con.execute(
+                "INSERT OR IGNORE INTO file_contents"
+                " (file_id, content, byte_size, is_binary, status) VALUES (?, ?, ?, ?, ?)",
+                (cur.lastrowid, *saved_contents[key]),
+            )
 
+    restored = con.execute("SELECT count(*) FROM file_contents").fetchone()[0]
     con.commit()
     con.close()
-    print(f"wrote {DB_PATH}", file=sys.stderr)
+    print(f"wrote {DB_PATH} (restored {restored} file contents)", file=sys.stderr)
 
 
 if __name__ == "__main__":

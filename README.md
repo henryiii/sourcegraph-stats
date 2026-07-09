@@ -24,15 +24,31 @@ GraphQL API (batched, using the `gh` CLI's token), and writes
 `scikit-build-core.db`. It rebuilds from scratch each run, so re-run it to
 refresh stars.
 
+## Fetching file contents
+
+```bash
+python3 fetch_files.py
+```
+
+This pulls each referenced file's contents into the `file_contents` table via
+the GitHub GraphQL API, batched ~50 files per request (the full ~980 files cost
+about 120 of the 5000 points/hour limit). It's resumable — already-fetched
+files are skipped — so re-run it if interrupted. A later `build_db.py` rebuild
+preserves already-fetched contents (remapped by repository + path), so you only
+need to re-run this for files that are new or were missing.
+
 ## Schema
 
-Two related tables:
+Three related tables:
 
 - **`repos`** — one row per repository:
   `id`, `repository` (e.g. `github.com/owner/name`), `host`, `owner`, `name`,
   `external_url`, `stars` (`NULL` for non-GitHub or deleted/private repos).
 - **`files`** — one row per matched file, linked via `repo_id` → `repos.id`:
   `id`, `repo_id`, `file_path`, `file_url`, `path_matches`, `chunk_matches`.
+- **`file_contents`** — the fetched blob, keyed by `file_id` → `files.id`:
+  `content`, `byte_size`, `is_binary`, `status`
+  (`ok` / `not_found` / `repo_missing` / `non_github`).
 
 Look up the files for a repo with a join:
 
