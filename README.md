@@ -85,3 +85,25 @@ across the fetched TOML files, reading straight from `file_contents`:
 `Any`); `-b` "blames" — lists the `repository file_path` of each match.
 
 [henryiii/pystats]: https://github.com/henryiii/pystats
+
+## Plotting minimum versions
+
+`plot-min-version.py` charts the minimum scikit-build-core version each project
+pins itself to. A [PEP 723][] script — run it with `uv run` (it declares its
+own `packaging` and `matplotlib` dependencies):
+
+```bash
+uv run plot-min-version.py              # writes min-version.png
+uv run plot-min-version.py -o out.svg   # pick the output file
+uv run plot-min-version.py --show       # interactive window instead of a file
+```
+
+Each project has two possible floors: the explicit
+`tool.scikit-build.minimum-version`, and the `>=` / `~=` / `==` bound on
+scikit-build-core in `build-system.requires`. The script prefers the explicit
+one when it names a real version, and falls back to the requirement bound
+otherwise (including when `minimum-version` is the `"build-system.requires"`
+sentinel). The result is a stacked bar per `major.minor` line, coloured by
+which source the floor came from.
+
+[PEP 723]: https://peps.python.org/pep-0723/
